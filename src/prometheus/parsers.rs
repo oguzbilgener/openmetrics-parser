@@ -27,7 +27,10 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<PrometheusType> {
         if let Some(name) = &self.name {
             // Counters have to end with _total
             if self.family_type == Some(PrometheusType::Counter) && !name.ends_with("_total") {
-                return Err(ParseError::InvalidMetric(format!("Counters should have a _total suffix. Got {}", name)));
+                return Err(ParseError::InvalidMetric(format!(
+                    "Counters should have a _total suffix. Got {}",
+                    name
+                )));
             }
         }
 
@@ -719,6 +722,7 @@ impl TryFrom<&str> for PrometheusType {
             "gauge" => Ok(PrometheusType::Gauge),
             "histogram" => Ok(PrometheusType::Histogram),
             "summary" => Ok(PrometheusType::Summary),
+            "untyped" => Ok(PrometheusType::Unknown),
             "unknown" => Ok(PrometheusType::Unknown),
             _ => Err(ParseError::InvalidMetric(format!(
                 "Invalid metric type: {}",
