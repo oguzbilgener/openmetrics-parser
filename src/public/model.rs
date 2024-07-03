@@ -315,6 +315,23 @@ where
     }
 }
 
+impl<TypeSet, ValueType> Clone for MetricFamily<TypeSet, ValueType>
+where
+    TypeSet: Clone,
+    ValueType: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            family_name: self.family_name.clone(),
+            label_names: self.label_names.clone(),
+            family_type: self.family_type.clone(),
+            help: self.help.clone(),
+            unit: self.unit.clone(),
+            metrics: self.metrics.clone(),
+        }
+    }
+}
+
 /// Exposition is the top level object of the parser. It's a collection of metric families, indexed by name
 #[derive(Debug)]
 pub struct MetricsExposition<TypeSet, ValueType> {
@@ -348,6 +365,18 @@ impl<TypeSet, ValueType> MetricsExposition<TypeSet, ValueType> {
     pub fn new() -> MetricsExposition<TypeSet, ValueType> {
         MetricsExposition {
             families: HashMap::new(),
+        }
+    }
+}
+
+impl<TypeSet, ValueType> Clone for MetricsExposition<TypeSet, ValueType>
+where
+    TypeSet: Clone,
+    ValueType: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            families: self.families.clone(),
         }
     }
 }
