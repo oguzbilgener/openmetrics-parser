@@ -9,7 +9,8 @@ fn test_prometheus_parser() {
         let path = file.path();
         if path.extension().unwrap() == "txt" {
             let child_str = fs::read_to_string(&path).unwrap();
-            let result = parse_prometheus(&child_str);
+            println!("Parsing {:?}", path);
+            let result = parse_prometheus(&child_str, false);
             assert!(result.is_ok(), "failed to parse {}: {}", path.display(), result.err().unwrap());
         }
     }

@@ -22,16 +22,17 @@ pub trait MarshalledMetricFamily {
         label_values: Vec<String>,
         timestamp: Option<Timestamp>,
         exemplar: Option<Exemplar>,
+        strict_mode: bool,
     ) -> Result<(), Self::Error>;
 
-    fn validate(&self) -> Result<(), ParseError>;
+    fn validate(&self, strict_mode: bool) -> Result<(), ParseError>;
 }
 
 pub trait MarshalledMetric<T>
 where
     T: MetricsType,
 {
-    fn validate(&self, family: &MetricFamilyMarshal<T>) -> Result<(), ParseError>;
+    fn validate(&self, family: &MetricFamilyMarshal<T>, strict_mode: bool) -> Result<(), ParseError>;
 }
 
 pub trait RenderableMetricValue {

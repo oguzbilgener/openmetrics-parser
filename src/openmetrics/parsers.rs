@@ -68,6 +68,7 @@ impl MetricsType for OpenMetricsType {
             OpenMetricsType::StateSet => MetricValueMarshal::StateSet(None),
             OpenMetricsType::Summary => MetricValueMarshal::Summary(SummaryValue::default()),
             OpenMetricsType::Info => MetricValueMarshal::Info,
+            OpenMetricsType::Untyped => MetricValueMarshal::Unknown(None),
         }
     }
 
@@ -102,6 +103,7 @@ impl TryFrom<&str> for OpenMetricsType {
             "summary" => Ok(OpenMetricsType::Summary),
             "info" => Ok(OpenMetricsType::Info),
             "unknown" => Ok(OpenMetricsType::Unknown),
+            "untyped" => Ok(OpenMetricsType::Untyped),
             _ => Err(ParseError::InvalidMetric(format!(
                 "Invalid metric type: {}",
                 value
@@ -123,10 +125,10 @@ impl From<MetricMarshal> for Sample<OpenMetricsValue> {
 }
 
 impl MarshalledMetric<OpenMetricsType> for MetricMarshal {
-    fn validate(&self, family: &MetricFamilyMarshal<OpenMetricsType>) -> Result<(), ParseError> {
+    fn validate(&self, family: &MetricFamilyMarshal<OpenMetricsType>, strict_mode: bool) -> Result<(), ParseError> {
         // All the labels are right
-        if family.label_names.is_none() && !self.label_values.is_empty()
-            || (family.label_names.as_ref().unwrap().names.len() != self.label_values.len())
+        if family.label_names.is_none() && !self.label_values.is_empty() && strict_mode
+            || (family.label_names.as_ref().unwrap().names.len() != self.label_values.len()) && strict_mode
         {
             return Err(ParseError::InvalidMetric(format!(
                 "Metrics in family have different label sets: {:?} {:?}",
@@ -221,7 +223,7 @@ impl MarshalledMetric<OpenMetricsType> for MetricMarshal {
 impl MarshalledMetricFamily for MetricFamilyMarshal<OpenMetricsType> {
     type Error = ParseError;
 
-    fn validate(&self) -> Result<(), ParseError> {
+    fn validate(&self, strict_mode: bool) -> Result<(), ParseError> {
         if self.name.is_none() {
             return Err(ParseError::InvalidMetric(
                 "Metric didn't have a name".to_string(),
@@ -243,7 +245,7 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<OpenMetricsType> {
         }
 
         for metric in self.metrics.iter() {
-            metric.validate(self)?;
+            metric.validate(self, strict_mode)?;
         }
 
         Ok(())
@@ -257,6 +259,7 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<OpenMetricsType> {
         label_values: Vec<String>,
         timestamp: Option<Timestamp>,
         exemplar: Option<Exemplar>,
+        strict_mode: bool
     ) -> Result<(), Self::Error> {
         let handlers = vec![
             (
@@ -695,6 +698,36 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<OpenMetricsType> {
                 )],
             ),
             (
+                vec![OpenMetricsType::Untyped],
+                vec![(
+                    "",
+                    vec![],
+                    MetricProcesser::new(
+                        |existing_metric: &mut MetricMarshal,
+                         metric_value: MetricNumber,
+                         _: Vec<String>,
+                         _: Vec<String>,
+                         _: Option<Exemplar>,
+                         _: bool| {
+                            if let MetricValueMarshal::Unknown(unknown_value) =
+                                &mut existing_metric.value
+                            {
+                                if unknown_value.is_some() {
+                                    return Err(ParseError::DuplicateMetric);
+                                }
+
+                                existing_metric.value =
+                                    MetricValueMarshal::Unknown(Some(metric_value));
+                            } else {
+                                unreachable!();
+                            }
+
+                            Ok(())
+                        },
+                    ),
+                )],
+            ),
+            (
                 vec![OpenMetricsType::Info],
                 vec![(
                     "_info",
@@ -923,16 +956,18 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<OpenMetricsType> {
                     self.try_set_label_names(
                         name,
                         LabelNames::new(name, metric_type, actual_label_names),
+                        strict_mode
                     )?;
 
                     let metric_name = metric_name.trim_end_matches(suffix);
-                    if self.name.is_some() && self.name.as_ref().unwrap() != metric_name {
+                    if self.name.is_some() && self.name.as_ref().unwrap() != metric_name && strict_mode {
                         return Err(ParseError::InvalidMetric(format!(
                             "Invalid Name in metric family: {} != {}",
                             metric_name,
                             self.name.as_ref().unwrap()
                         )));
-                    } else if self.name.is_none() {
+                    }
+                    if self.name.is_none() {
                         self.name = Some(metric_name.to_owned());
                     }
 
@@ -1008,6 +1043,7 @@ impl From<MetricFamilyMarshal<OpenMetricsType>>
 
 pub fn parse_openmetrics(
     exposition_bytes: &str,
+    strict_mode: bool,
 ) -> Result<MetricsExposition<OpenMetricsType, OpenMetricsValue>, ParseError> {
     use pest::iterators::Pair;
 
@@ -1114,6 +1150,7 @@ pub fn parse_openmetrics(
     fn parse_sample(
         pair: Pair<Rule>,
         family: &mut MetricFamilyMarshal<OpenMetricsType>,
+        strict_mode: bool,
     ) -> Result<(), ParseError> {
         assert_eq!(pair.as_rule(), Rule::sample);
 
@@ -1173,6 +1210,7 @@ pub fn parse_openmetrics(
             label_values,
             timestamp,
             exemplar,
+            strict_mode
         )?;
 
         Ok(())
@@ -1180,6 +1218,7 @@ pub fn parse_openmetrics(
 
     fn parse_metric_family(
         pair: Pair<Rule>,
+        strict_mode: bool,
     ) -> Result<MetricFamily<OpenMetricsType, OpenMetricsValue>, ParseError> {
         assert_eq!(pair.as_rule(), Rule::metricfamily);
 
@@ -1197,13 +1236,13 @@ pub fn parse_openmetrics(
                     }
                 }
                 Rule::sample => {
-                    parse_sample(child, &mut metric_family)?;
+                    parse_sample(child, &mut metric_family, strict_mode)?;
                 }
                 _ => unreachable!(),
             }
         }
 
-        metric_family.validate()?;
+        metric_family.validate(strict_mode)?;
 
         Ok(metric_family.into())
     }
@@ -1219,7 +1258,7 @@ pub fn parse_openmetrics(
     for span in exposition_marshal.into_inner() {
         match span.as_rule() {
             Rule::metricfamily => {
-                let family = parse_metric_family(span)?;
+                let family = parse_metric_family(span, strict_mode)?;
 
                 if exposition.families.contains_key(&family.family_name) {
                     return Err(ParseError::InvalidMetric(format!(

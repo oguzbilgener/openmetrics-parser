@@ -19,6 +19,7 @@ kw_statefulset = { "stateset" }
 kw_info = { "info" }
 kw_summary = { "summary" }
 kw_unknown = { "unknown" }
+kw_untyped = { "untyped" }
 
 exposition = ${ metricset ~ hash ~ sp ~ kw_eof ~ NEWLINE? }
 metricset = _{ metricfamily+ }
@@ -31,7 +32,7 @@ metricdescriptor = ${
                    }
 
 metric = _{ sample+ }
-metrictype = @{ kw_gaugehistogram | kw_counter | kw_gauge |  kw_histogram | kw_statefulset | kw_info | kw_summary | kw_unknown }
+metrictype = @{ kw_gaugehistogram | kw_counter | kw_gauge |  kw_histogram | kw_statefulset | kw_info | kw_summary | kw_unknown | kw_untyped }
 metricunit = { metricname_char* }
 
 sample = ${ metricname ~ labels? ~ sp ~ number ~ (sp ~ timestamp)? ~ exemplar? ~ NEWLINE }

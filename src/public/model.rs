@@ -107,7 +107,7 @@ where
         }
     }
 
-    pub fn with_labels<'a, T>(&self, labels: T) -> Self
+    pub fn with_labels<'a, T>(&self, labels: T, strict_mode: bool) -> Self
     where
         T: IntoIterator<Item = (&'a str, &'a str)>,
     {
@@ -656,11 +656,16 @@ pub enum OpenMetricsType {
     /// Unknown SHOULD NOT be used. Unknown MAY be used when it is impossible to determine the types of individual metrics from 3rd party systems.
     /// A point in a metric with the unknown type MUST have a single value.
     Unknown,
+    /// Untyped is the prometheus compliant implementation of Unknown as per the prometheus spec: If the token is TYPE, exactly two more tokens 
+    /// are expected. The first is the metric name, and the second is either counter, gauge, histogram, summary, or untyped, defining the type for 
+    /// the metric of that name
+    Untyped,
 }
 
 #[derive(Debug, Clone)]
 pub enum OpenMetricsValue {
     Unknown(MetricNumber),
+    Untyped(MetricNumber),
     Gauge(MetricNumber),
     Counter(CounterValue),
     Histogram(HistogramValue),
@@ -684,6 +689,7 @@ impl RenderableMetricValue for OpenMetricsValue {
             .unwrap_or_default();
         match self {
             OpenMetricsValue::Unknown(n)
+            | OpenMetricsValue::Untyped(n)
             | OpenMetricsValue::Gauge(n)
             | OpenMetricsValue::StateSet(n) => {
                 writeln!(
@@ -738,6 +744,7 @@ pub enum PrometheusType {
     Histogram,
     Summary,
     Unknown,
+    Untyped,
 }
 
 impl fmt::Display for PrometheusType {
@@ -748,6 +755,7 @@ impl fmt::Display for PrometheusType {
             PrometheusType::Histogram => "histogram",
             PrometheusType::Summary => "summary",
             PrometheusType::Unknown => "unknown",
+            PrometheusType::Untyped => "untyped",
         };
 
         f.write_str(out)
@@ -763,6 +771,7 @@ pub struct PrometheusCounterValue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrometheusValue {
     Unknown(MetricNumber),
+    Untyped(MetricNumber),
     Gauge(MetricNumber),
     Counter(PrometheusCounterValue),
     Histogram(HistogramValue),
@@ -782,7 +791,9 @@ impl RenderableMetricValue for PrometheusValue {
             .map(|t| format!(" {}", format_float(*t)))
             .unwrap_or_default();
         match self {
-            PrometheusValue::Unknown(n) | PrometheusValue::Gauge(n) => writeln!(
+            PrometheusValue::Unknown(n) 
+            | PrometheusValue::Untyped(n) 
+            | PrometheusValue::Gauge(n) => writeln!(
                 f,
                 "{}{} {}{}",
                 metric_name,

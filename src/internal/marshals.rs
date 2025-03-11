@@ -95,6 +95,7 @@ where
         &mut self,
         sample_name: &str,
         names: LabelNames<T>,
+        strict_mode: bool,
     ) -> Result<(), ParseError> {
         if self.label_names.is_none() {
             self.label_names = Some(names);
@@ -102,7 +103,7 @@ where
         }
 
         let old_names = self.label_names.as_ref().unwrap();
-        if !old_names.matches(sample_name, &names) {
+        if !old_names.matches(sample_name, &names) && strict_mode {
             return Err(ParseError::InvalidMetric(
                 "Labels in metrics have different label sets".to_owned(),
             ));
