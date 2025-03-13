@@ -107,7 +107,7 @@ where
         }
     }
 
-    pub fn with_labels<'a, T>(&self, labels: T, strict_mode: bool) -> Self
+    pub fn with_labels<'a, T>(&self, labels: T) -> Self
     where
         T: IntoIterator<Item = (&'a str, &'a str)>,
     {

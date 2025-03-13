@@ -10,6 +10,8 @@ use crate::{
     public::*,
 };
 
+use super::mediamtx_annotator::annotate_mediamtx_metrics;
+
 #[derive(Parser)]
 #[grammar = "prometheus/prometheus.pest"]
 struct PrometheusParser;
@@ -296,7 +298,7 @@ impl MarshalledMetricFamily for MetricFamilyMarshal<PrometheusType> {
                          _: Vec<String>,
                          _: Option<Exemplar>,
                          _: bool| {
-                            if let MetricValueMarshal::Unknown(unknown_value) =
+                            if let MetricValueMarshal::Unknown(_) =
                                 &mut existing_metric.value
                             {
                                 // if unknown_value.is_some() {
@@ -992,4 +994,11 @@ pub fn parse_prometheus(
     }
 
     Ok(exposition)
+}
+
+pub fn parse_mediamtx_prometheus(exposition_bytes: &str,
+    strict_mode: bool
+) -> Result<MetricsExposition<PrometheusType, PrometheusValue>, ParseError> {
+    let annotated_mediamtx = annotate_mediamtx_metrics(exposition_bytes);
+    parse_prometheus(&annotated_mediamtx, strict_mode)
 }
