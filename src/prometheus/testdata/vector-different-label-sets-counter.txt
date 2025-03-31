@@ -1,0 +1,4 @@
+# HELP vector_component_sent_event_bytes_total component_sent_event_bytes_total
+# TYPE vector_component_sent_event_bytes_total counter
+vector_component_sent_event_bytes_total{component_id="throttle",component_kind="transform",component_type="throttle",host="OGUZ-108"} 1363766 1742999751023
+vector_component_sent_event_bytes_total{component_id="filter_level",component_kind="transform",component_type="filter",host="OGUZ-108",output="_default"} 6890246 1742999751023
