@@ -886,42 +886,42 @@ pub fn parse_prometheus(
 
         // Allow samples to have different label sets in non strict mode.
         if let Some(family_label_names) = family.label_names.as_mut().filter(|_| !strict_mode) {
-            for (name, _) in &labels {
-                let label_name = name.to_string();
+            for &(name, _) in &labels {
+                let label_name = name.to_owned();
                 let reserved_label_name = (family.family_type == Some(PrometheusType::Histogram) && label_name == "le") ||
                                           (family.family_type == Some(PrometheusType::Summary) && label_name == "quantile");
 
                 // Append any new label names that we haven't seen yet to this metric family's overall list of label names. Skip reserved label names.
                 if !family_label_names.names.contains(&label_name) && !reserved_label_name {
-                    family_label_names.names.push(label_name.clone());
+                    family_label_names.names.push(label_name);
 
                     // Update all family metrics parsed so far (excluding the current sample) to append an empty string for the missing label value.
-                    for metric in family.metrics.iter_mut() {
-                        metric.label_values.push("".to_string());
+                    for metric in &mut family.metrics {
+                        metric.label_values.push(String::new());
                     }
                 }
             }
 
-            // Create a map for faster label name lookups in the current sample being parsed.
-            let labels_map: std::collections::HashMap<_, _> = labels.into_iter().collect();
-
             // Create the label names and values vectors for the current sample, following the order in `family.label_names`. Use empty string label values for any labels not present in this sample.
-            for label_name in family_label_names.names.iter() {
-                let label_value = labels_map.get(label_name.as_str()).unwrap_or(&"");
+            for label_name in &family_label_names.names {
+                let label_value = labels
+                    .iter()
+                    .find(|&&(name, _)| name == label_name)
+                    .map_or("", |&(_, value)| value);
                 label_names.push(label_name.clone());
-                label_values.push(label_value.to_string());
+                label_values.push(label_value.to_owned());
             }
 
             // Append any reserved label names that we skipped earlier.
-            for key in ["le", "quantile"].iter() {
-                if labels_map.contains_key(key) {
-                    label_names.push(key.to_string());
-                    label_values.push(labels_map.get(key).unwrap().to_string());
+            for key in ["le", "quantile"] {
+                if let Some(&(_, value)) = labels.iter().find(|&&(name, _)| name == key) {
+                    label_names.push(key.to_owned());
+                    label_values.push(value.to_owned());
                 }
             }
         } else {
             // Create lists of label names and values for the current sample. In strict mode samples always have the same set of labels.
-            for (name, value) in labels.into_iter() {
+            for (name, value) in labels {
                 label_names.push(name.to_owned());
                 label_values.push(value.to_owned());
             }
