@@ -1,0 +1,4 @@
+# HELP vector_component_sent_event_bytes_total component_sent_event_bytes_total
+# TYPE vector_component_sent_event_bytes_total counter
+vector_component_sent_event_bytes_total{component_id="internal_metrics_prom",component_kind="sink",component_type="prometheus_exporter",host="OGUZ-108"} 1606953 1742999751023
+vector_component_sent_event_bytes_total{component_kind="transform",component_id="throttle",host="OGUZ-108",component_type="throttle"} 1363766 1742999751023
