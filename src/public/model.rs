@@ -17,7 +17,7 @@ pub type Timestamp = f64;
 /// The combined length of the label names and values of an Exemplar's LabelSet MUST NOT exceed 128 UTF-8 characters.
 /// Other characters in the text rendering of an exemplar such as ",= are not included in this limit for implementation
 /// simplicity and for consistency between the text and proto formats.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct Exemplar {
     pub labels: HashMap<String, String>,
     pub timestamp: Option<f64>,
@@ -51,7 +51,7 @@ impl fmt::Display for Exemplar {
 /// https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metricfamily
 /// A MetricFamily MAY have zero or more Metrics. A MetricFamily MUST have a name, HELP, TYPE, and UNIT metadata.
 /// Every Metric within a MetricFamily MUST have a unique LabelSet.
-#[derive(Debug)]
+#[derive(Debug, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct MetricFamily<TypeSet, ValueType> {
     pub family_name: String,
     label_names: Arc<Vec<String>>,
@@ -333,7 +333,7 @@ where
 }
 
 /// Exposition is the top level object of the parser. It's a collection of metric families, indexed by name
-#[derive(Debug)]
+#[derive(Debug, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct MetricsExposition<TypeSet, ValueType> {
     pub families: HashMap<String, MetricFamily<TypeSet, ValueType>>,
 }
@@ -381,7 +381,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct CounterValue {
     pub value: MetricNumber,
     pub created: Option<Timestamp>,
@@ -400,7 +400,7 @@ fn format_float(f: f64) -> String {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct HistogramBucket {
     pub count: MetricNumber,
     pub upper_bound: f64,
@@ -447,7 +447,7 @@ impl RenderableMetricValue for HistogramBucket {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct HistogramValue {
     pub sum: Option<MetricNumber>,
     pub count: Option<u64>,
@@ -492,7 +492,7 @@ pub struct State {
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct Quantile {
     pub quantile: f64,
     pub value: MetricNumber,
@@ -530,7 +530,7 @@ impl RenderableMetricValue for Quantile {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct SummaryValue {
     pub sum: Option<MetricNumber>,
     pub count: Option<u64>,
@@ -656,13 +656,13 @@ pub enum OpenMetricsType {
     /// Unknown SHOULD NOT be used. Unknown MAY be used when it is impossible to determine the types of individual metrics from 3rd party systems.
     /// A point in a metric with the unknown type MUST have a single value.
     Unknown,
-    /// Untyped is the prometheus compliant implementation of Unknown as per the prometheus spec: If the token is TYPE, exactly two more tokens 
-    /// are expected. The first is the metric name, and the second is either counter, gauge, histogram, summary, or untyped, defining the type for 
+    /// Untyped is the prometheus compliant implementation of Unknown as per the prometheus spec: If the token is TYPE, exactly two more tokens
+    /// are expected. The first is the metric name, and the second is either counter, gauge, histogram, summary, or untyped, defining the type for
     /// the metric of that name
     Untyped,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub enum OpenMetricsValue {
     Unknown(MetricNumber),
     Untyped(MetricNumber),
@@ -737,7 +737,7 @@ impl RenderableMetricValue for OpenMetricsValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub enum PrometheusType {
     Counter,
     Gauge,
@@ -762,13 +762,13 @@ impl fmt::Display for PrometheusType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct PrometheusCounterValue {
     pub value: MetricNumber,
     pub exemplar: Option<Exemplar>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub enum PrometheusValue {
     Unknown(MetricNumber),
     Untyped(MetricNumber),
@@ -791,8 +791,8 @@ impl RenderableMetricValue for PrometheusValue {
             .map(|t| format!(" {}", format_float(*t)))
             .unwrap_or_default();
         match self {
-            PrometheusValue::Unknown(n) 
-            | PrometheusValue::Untyped(n) 
+            PrometheusValue::Unknown(n)
+            | PrometheusValue::Untyped(n)
             | PrometheusValue::Gauge(n) => writeln!(
                 f,
                 "{}{} {}{}",
@@ -826,7 +826,7 @@ impl RenderableMetricValue for PrometheusValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub struct Sample<ValueType> {
     label_names: Option<Arc<Vec<String>>>,
     label_values: Vec<String>,
@@ -915,7 +915,7 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 pub enum MetricNumber {
     Float(f64),
     Int(i64),
