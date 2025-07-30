@@ -182,6 +182,10 @@ where
         self.metrics.iter_mut()
     }
 
+    pub fn retain_samples(&mut self, f: impl FnMut(&Sample<ValueType>) -> bool) {
+        self.metrics.retain(f);
+    }
+
     pub fn with_samples<T>(mut self, samples: T) -> Result<Self, ParseError>
     where
         T: IntoIterator<Item = Sample<ValueType>>,
